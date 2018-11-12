@@ -1,8 +1,9 @@
-CODE_COMMON__ERROR  = 0
-CODE_SERVER__FULL   = 1
-CODE_SERVER__OK     = 2
-CODE_CLIENT__EXIT   = 3
-CODE_CLIENT__IDLE   = 4
+CODE_COMMON__ERROR  = 1000
+CODE_SERVER__FULL   = 1001
+
+CODE_SERVER__OK     = 2000
+CODE_CLIENT__EXIT   = 2001
+CODE_CLIENT__IDLE   = 2002
 
 
 def str_code(code):
@@ -31,7 +32,7 @@ def read_message(connection):
     if len(length) != 0 and len(code) != 0:
         length = int(length)
         code = int(code)
-        msg = connection.recv(length)
+        msg = connection.recv(length).decode()
     else:
         length = 0
         code = CODE_COMMON__ERROR

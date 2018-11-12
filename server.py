@@ -4,6 +4,7 @@ from threading import Thread
 import time
 
 from common import *
+from client import client
 
 
 
@@ -28,24 +29,6 @@ def get_ip():
         except IOError:
             pass
     return ip, interface_name
-
-
-
-
-
-
-
-class client:
-    
-    def __init__(self, connection):
-        
-        self.connection = connection
-    
-    
-    def close(self):
-        
-        self.connection.close()
-
 
 
 
@@ -115,28 +98,41 @@ class server:
     
     
     def new_client(self, connection):
-        c = client(connection)
-        self.clients.append(c)
+        user = client(connection)
+        self.clients.append(user)
         self.send_ok(connection)
-        t = Thread(target=self.client_thread, args=[connection])
+        t = Thread(target=self.client_thread, args=[user])
         self.threads.append(t)
         t.start()
     
     
-    def client_thread(self, connection):
+    def client_thread(self, user):
         
         should_continue = True
-        print("Listening", connection.getpeername())
+        print("Listening", user.connection.getpeername())
         while should_continue:
-            code, msg = read_message(connection)
-            print(connection.getpeername(), "   -", str_code(code), "-", msg)
-            if code == CODE_CLIENT__EXIT or code == CODE_COMMON__ERROR:
+            try:
+                code, msg = read_message(user.connection)
+                if code == CODE_CLIENT__EXIT or code == CODE_COMMON__ERROR:
+                    should_continue = False
+                elif code == CODE_CLIENT__IDLE:
+                    print(user.connection.getpeername(), "   -", str_code(code), "-", msg)
+                else:
+                    self.send_error(user.connection)
+                    should_continue = False
+            except Exception as e:
+                print(e)
                 should_continue = False
-        for i,c in enumerate(self.clients):
-            if c.connection == connection:
-                del self.clients[i]
-                break
-        connection.close()
+        print("Stop listening", user.connection.getpeername())
+        user.connection.close()
+        self.clients.remove(user)
+    
+    
+    def send_error(self, connection):
+        
+        error_str = "Bad request"
+        msg = header(len(error_str), CODE_COMMON__ERROR) + error_str
+        connection.send(msg.encode())
     
     
     def send_full(self, connection):
@@ -153,6 +149,6 @@ class server:
 
 
 
-
-serv = server(3856, 1)
-serv.listen()
+if __name__ == "__main__":
+    serv = server(3856, 1)
+    serv.listen()
