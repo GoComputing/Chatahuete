@@ -53,13 +53,18 @@ class server:
         if ip == None:
             print("ERROR: Not valid interface found")
             exit()
-            print("Using interface: ", interface)
+        print("Using interface: ", interface)
         
         # Create the listener
         self.listener = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.listener.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         self.listener.bind((ip, port))
         self.listener.listen(self.max_listen)
+        
+        # Callbacks
+        self.user_nick_changed_callback = None
+        self.user_connected_to_room_callback = None
+        self.user_disconnected_callback = None
     
     
     def add_room_name(self, room_name):
@@ -83,6 +88,21 @@ class server:
         if self.run:
             self.run = False
             self.listener.close()
+    
+    
+    def set_user_nick_changed_callback(self, fnc):
+        
+        self.user_nick_changed_callback = fnc
+    
+    
+    def set_user_connected_to_room_callback(self, fnc):
+        
+        self.user_connected_to_room_callback = fnc
+    
+    
+    def set_user_disconnected_callback(self, fnc):
+        
+        self.user_disconnected_callback = fnc
     
     
     def listen(self):
@@ -157,6 +177,8 @@ class server:
                 print(e)
                 should_continue = False
         print("Stop listening", user.connection.getpeername())
+        if self.user_disconnected_callback != None:
+            self.user_disconnected_callback(user.nick, user.current_room_name)
         user.connection.close()
         self.clients.remove(user)
     
@@ -177,6 +199,11 @@ class server:
         if found:
             send_message(user.connection, CODE_SERVER__NICK_DENY, '')
         else:
+            for u in self.clients:
+                if u.nick != user.nick:
+                    send_message(u.connection, CODE_SERVER__USER_NICK_CHANGED, user.current_room_name+"\n"+user.nick+"\n"+new_nick)
+            if self.user_nick_changed_callback != None:
+                self.user_nick_changed_callback(user.current_room_name, user.nick, new_nick)
             user.nick = new_nick
             send_message(user.connection, CODE_SERVER__NICK_OK, '')
     
@@ -184,14 +211,16 @@ class server:
     def _connect_user_to_room(self, user, room_name):
         
         if user.nick != None  and room_name in self.rooms:
-            user.current_room_name = room_name
-            send_message(user.connection, CODE_SERVER__ROOM_CONNECTED, '')
             msg = user.nick
             for u in self.clients:
                 if u.current_room_name == room_name and u.nick != user.nick:
                     msg = msg + "\n" + u.nick
             for u in self.clients:
                 send_message(u.connection, CODE_SERVER__USERS_ROOM_CHANGED, msg)
+            if self.user_connected_to_room_callback != None:
+                self.user_connected_to_room_callback(user.current_room_name, room_name, user.nick)
+            user.current_room_name = room_name
+            send_message(user.connection, CODE_SERVER__ROOM_CONNECTED, '')
         else:
             send_message(user.connection, CODE_SERVER__ROOM_DENY, '')
             

@@ -12,16 +12,24 @@ class client:
     
     def __init__(self, connection):
         
+        # Connection
         self.connection = connection
         self.should_continue = False
         self.thread = None
+        
+        # Nick
         self.nick = None
         self.new_nick = None
-        self.nick_changed_callback = None
-        self.rooms_changed_callback = None
+        
+        # Room
         self.current_room_name = None
-        self.deletec_room_callback = None
         self.new_room = None
+        
+        # Callbacks
+        self.nick_changed_callback = None
+        self.user_nick_changed_callback = None
+        self.rooms_changed_callback = None
+        self.deleted_room_callback = None
         self.connected_to_room_callback = None
         self.users_room_changed_callback = None
         self.message_received_callback = None
@@ -55,12 +63,19 @@ class client:
                 if code == CODE_COMMON__ERROR:
                     self.should_continue = False
                 elif code == CODE_SERVER__NICK_OK:
-                    print("Changed nick to", self.new_nick)
                     self.nick = self.new_nick
                     if self.nick_changed_callback != None:
-                        self.nick_changed_callback(self.nick)
+                        self.nick_changed_callback(True, self.nick)
                 elif code == CODE_SERVER__NICK_DENY:
-                    print("Could not change nick to", self.new_nick)
+                    if self.nick_changed_callback != None:
+                        self.nick_changed_callback(False, self.nick)
+                elif code == CODE_SERVER__USER_NICK_CHANGED:
+                    if self.user_nick_changed_callback != None:
+                        names = msg.splitlines()
+                        room_name = names[0]
+                        old_name = names[1]
+                        new_name = names[2]
+                        self.user_nick_changed_callback(room_name, old_name, new_name)
                 elif code == CODE_SERVER__ROOMS_MODIFIED:
                     rooms = msg.splitlines()
                     if self.current_room_name not in rooms:
@@ -70,20 +85,21 @@ class client:
                     if self.rooms_changed_callback != None:
                         self.rooms_changed_callback(rooms)
                 elif code == CODE_SERVER__ROOM_CONNECTED:
-                    print("Changed to room", self.new_room)
                     self.current_room_name = self.new_room
                     if self.connected_to_room_callback != None:
-                        self.connected_to_room_callback(self.current_room_name)
+                        self.connected_to_room_callback(True, self.current_room_name)
                 elif code == CODE_SERVER__ROOM_DENY:
-                    print("Could not connect to room '", self.new_room, "'")
+                    if self.connected_to_room_callback != None:
+                        self.connected_to_room_callback(False, self.current_room_name)
                 elif code == CODE_SERVER__USERS_ROOM_CHANGED:
                     if self.users_room_changed_callback != None:
                         self.users_room_changed_callback(msg.splitlines())
-                elif code == CODE_SERVER__BAD_LAST_MESSAGE:
-                    print("Could not send last message")
                 elif code == CODE_SERVER__MESSAGE_OK:
                     if self.message_received_callback != None:
-                        self.message_received_callback()
+                        self.message_received_callback(True)
+                elif code == CODE_SERVER__BAD_LAST_MESSAGE:
+                    if self.message_received_callback != None:
+                        self.message_received_callback(False)
                 elif code == CODE_SERVER__NEW_MESSAGE:
                     if self.new_message_callback != None:
                         messages = msg.splitlines()
@@ -108,6 +124,11 @@ class client:
     def set_nick_changed_callback(self, fnc):
         
         self.nick_changed_callback = fnc
+    
+    
+    def set_user_nick_changed_callback(self, fnc):
+        
+        self.user_nick_changed_callback = fnc
     
     
     def set_rooms_changed_callback(self, fnc):
@@ -158,7 +179,7 @@ class client:
     
     def close(self):
         
-        self.should_continue = True
+        self.should_continue = False
         if self.connection != None:
             self.connection.close()
         if self.thread != None:
@@ -236,10 +257,13 @@ if __name__ == "__main__":
         
         print(user, ": ", room, ". ", msg, sep='')
     
-    def message_received_callback():
+    def message_received_callback(received):
         
-        print("Server received message")
-    
+        if received:
+            print("Server received message")
+        else:
+            print("Server deny last message")
+            
     user = connect(None)
     user.set_rooms_changed_callback(rooms_changed_callback)
     user.set_new_message_callback(new_message_callback)
