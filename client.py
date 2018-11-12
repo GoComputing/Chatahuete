@@ -2,6 +2,11 @@ from tkinter import simpledialog
 from tkinter import messagebox
 from tkinter import Tk
 import socket
+import time
+
+from common import *
+
+
 
 def connect(ip, port):
     
@@ -26,12 +31,22 @@ def connect(ip, port):
     root.destroy()
     return connection
 
-
+    
 
 
 
 connection = connect(None, 3856)
 
 # TO-DO
+code, _ = read_message(connection)
+print(str_code(code))
+if code == CODE_SERVER__FULL:
+    messagebox.showerror("Error", "Server full")
+elif code == CODE_SERVER__OK:
+    while True:
+        send_message(connection, CODE_CLIENT__IDLE, "Hola")
+        time.sleep(1)
+else:
+    messagebox.showerror("Error", "Unknown error")
 
 connection.close()
