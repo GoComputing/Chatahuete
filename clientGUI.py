@@ -36,12 +36,13 @@ class ClientGUI(Frame):
         self.master.bind("<Return>", self.get_text)
         self.username=""
         self.set_username()
-        print(self.username)
+        print("Username: ", self.username)
 
     def set_username(self):
         
         username_window = Tk()
-
+        username_window.title("Username")
+        username_window.attributes("-topmost", True)
         w=200
         h=100
         y = username_window.winfo_screenheight() / 2 - h / 2
@@ -53,7 +54,8 @@ class ClientGUI(Frame):
         l.pack()
         e = Entry(username_window)
         e.pack()
-        b = Button(username_window, text="Done!", command=lambda: self.username.join(e.get()))
+
+        b = Button(username_window, text="Done!", command=lambda: (strcpy(self.username, e.get())))
         b.pack()
         username_window.mainloop()
         
