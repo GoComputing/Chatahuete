@@ -1,11 +1,40 @@
 import wx
 
+class ClientRoomSelector(wx.ScrolledWindow):
+
+    def __init__(self, parent, x_min):
+        
+        super(ClientRoomSelector, self).__init__(parent, x_min)
+        self.SetMinSize((x_min, 1))
+        self.SetBackgroundColour((255, 255, 255))
+
+
+
+class ClientMessageList(wx.ScrolledWindow):
+    
+    def __init__(self, parent):
+        
+        super(ClientMessageList, self).__init__(parent)
+        self.SetBackgroundColour((0, 255, 255))
+
+
+
+class ClientInput(wx.TextCtrl):
+    
+    def __init__(self, parent):
+        
+        super(ClientInput, self).__init__(parent)
+
+
+
+
 class ClientGUI(wx.Frame):
     
     def __init__(self, title):
         
         super(ClientGUI, self).__init__(None, title=title, size=(1024, 1024))
         self.InitMenu()
+        self.InitStructure()
         self.Centre()
         self.Maximize()
     
@@ -27,6 +56,27 @@ class ClientGUI(wx.Frame):
         # Events
         self.Bind(wx.EVT_MENU, self.OnQuit, self.file_menu__close)
         self.Bind(wx.EVT_MENU, self.OnChangeNick, self.user_menu__change_nick)
+    
+    
+    def InitStructure(self):
+        
+        # Basic elements
+        self.room_selector = ClientRoomSelector(self, 300)
+        self.message_list = ClientMessageList(self)
+        self.input = ClientInput(self)
+        self.input.SetFocus()
+        # Chat sizer
+        self.chat_sizer = wx.BoxSizer(wx.VERTICAL)
+        self.chat_sizer.Add(self.message_list, 1, wx.EXPAND|wx.ALL)
+        self.chat_sizer.Add(self.input, 0, wx.EXPAND|wx.ALL)
+        # Room selector sizer
+        self.room_sizer = wx.BoxSizer(wx.VERTICAL)
+        self.room_sizer.Add(self.room_selector, 1, wx.EXPAND|wx.ALL)
+        # Main sizer
+        self.main_sizer = wx.BoxSizer(wx.HORIZONTAL)
+        self.main_sizer.Add(self.room_sizer, 0, wx.EXPAND|wx.ALL)
+        self.main_sizer.Add(self.chat_sizer, 1, wx.EXPAND|wx.ALL)
+        self.SetSizer(self.main_sizer)
     
     
     def ChangeNick(self, new_nick):
