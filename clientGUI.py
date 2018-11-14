@@ -1,4 +1,5 @@
 import wx
+import wx.lib.scrolledpanel as scrolled
 
 class ClientRoomSelector(wx.ScrolledWindow):
 
@@ -9,13 +10,57 @@ class ClientRoomSelector(wx.ScrolledWindow):
         self.SetBackgroundColour((255, 255, 255))
 
 
+class ClientMessage(wx.Panel):
+    
+    def __init__(self, parent, user, message):
+        
+        super(ClientMessage, self).__init__(parent)
+        self.y_tam = 32
+        self.x_padding = 20
+        # Frames
+        self.user_frame = wx.Panel(self)
+        self.message_frame = wx.Panel(self)
+        # Frame setup
+        self.user_frame.SetMinSize((100, self.y_tam))
+        self.user_frame.SetMaxSize((100, self.y_tam))
+        #self.user_frame.SetBackgroundColour((255, 0, 255))
+        colour = self.message_frame.GetBackgroundColour()
+        new_colour = (colour[0]*0.9, colour[1]*0.9, colour[2]*0.9, colour[3])
+        self.message_frame.SetBackgroundColour(new_colour)
+        self.message_frame.SetMaxSize((1000000, self.y_tam))
+        # Sizer
+        self.sizer = wx.BoxSizer(wx.HORIZONTAL)
+        self.sizer.Add(self.user_frame, 0, wx.EXPAND|wx.ALL)
+        self.sizer.Add(self.message_frame, 1, wx.EXPAND|wx.ALL)
+        self.SetSizer(self.sizer)
+        # Text
+        self.user_text = wx.StaticText(self.user_frame, wx.ID_ANY, user, pos=(self.x_padding, 5))
+        self.message = wx.StaticText(self.message_frame, wx.ID_ANY, message, pos=(self.x_padding, 5))
+        self.message_frame.SetMinSize((self.message.GetSize()[0]+3*self.x_padding, self.y_tam))
 
-class ClientMessageList(wx.ScrolledWindow):
+
+class ClientMessageList(scrolled.ScrolledPanel):
     
     def __init__(self, parent):
         
         super(ClientMessageList, self).__init__(parent)
-        self.SetBackgroundColour((0, 255, 255))
+        self.parent = parent
+        self.sizer = wx.BoxSizer(wx.VERTICAL)
+        self.messages = []
+        self.SetSizer(self.sizer)
+    
+    
+    def NewMessage(self, user, message):
+        
+        message = ClientMessage(self, user, message)
+        self.sizer.Add(message, 1)
+        self.sizer.AddSpacer(50)
+        self.messages.append(message)
+        self.Layout()
+        self.SetupScrolling(scrollToTop=False)
+        self.ScrollChildIntoView(self.messages[-1])
+        self.parent.chat_sizer.Layout()
+        self.parent.Fit()
 
 
 
@@ -23,7 +68,7 @@ class ClientInput(wx.TextCtrl):
     
     def __init__(self, parent):
         
-        super(ClientInput, self).__init__(parent)
+        super(ClientInput, self).__init__(parent, style=wx.TE_PROCESS_ENTER)
 
 
 
@@ -60,23 +105,27 @@ class ClientGUI(wx.Frame):
     
     def InitStructure(self):
         
+        # Sizers
+        self.chat_sizer = wx.BoxSizer(wx.VERTICAL)
+        self.main_sizer = wx.BoxSizer(wx.HORIZONTAL)
         # Basic elements
         self.room_selector = ClientRoomSelector(self, 300)
         self.message_list = ClientMessageList(self)
+        #self.message_list = ClientMessage(self, "Carlos", "Carlos")
         self.input = ClientInput(self)
-        self.input.SetFocus()
         # Chat sizer
-        self.chat_sizer = wx.BoxSizer(wx.VERTICAL)
         self.chat_sizer.Add(self.message_list, 1, wx.EXPAND|wx.ALL)
         self.chat_sizer.Add(self.input, 0, wx.EXPAND|wx.ALL)
         # Room selector sizer
         self.room_sizer = wx.BoxSizer(wx.VERTICAL)
         self.room_sizer.Add(self.room_selector, 1, wx.EXPAND|wx.ALL)
         # Main sizer
-        self.main_sizer = wx.BoxSizer(wx.HORIZONTAL)
         self.main_sizer.Add(self.room_sizer, 0, wx.EXPAND|wx.ALL)
         self.main_sizer.Add(self.chat_sizer, 1, wx.EXPAND|wx.ALL)
         self.SetSizer(self.main_sizer)
+        # Input setup
+        self.input.SetFocus()
+        self.Bind(wx.EVT_TEXT_ENTER, self.OnNewMessage, self.input)
     
     
     def ChangeNick(self, new_nick):
@@ -91,6 +140,14 @@ class ClientGUI(wx.Frame):
     def ShowError(self, message):
         
         wx.MessageDialog(self, message, style=wx.ICON_ERROR|wx.CENTRE).ShowModal()
+    
+    
+    def OnNewMessage(self, event):
+        
+        if len(self.input.GetValue()) > 0:
+            message = self.input.GetValue()
+            self.input.SetValue('')
+            self.message_list.NewMessage("Carlos", message)
     
     
     def OnQuit(self, event):
