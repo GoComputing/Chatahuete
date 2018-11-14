@@ -1,138 +1,137 @@
-from tkinter import *
-from tkinter import ttk
-from PIL import Image, ImageTk
+import wx
 
-
-
-
-class ServerGUI(Frame):
-
-    def __init__(self, master):
-
-        Frame.__init__(self, master)
-
-        self.master = master
-
-        self.init_window()
-
-    def init_window(self):
-
-        self.master.title("Servidor")
-        self.master.attributes("-zoomed", True)
-        self.pack(fill=BOTH, expand=True)
-
-        style = ttk.Style()
-        style.configure("Treeview", background="pink", fieldbackground="pink")
-        self.rooms = ttk.Treeview(self)
-        self.rooms_dict = {}
-
-        
-        menu = Menu(self.master)
-        self.master.config(menu=menu)
-
-        file = Menu(menu)
-        self.label = Label(self.master)
-        file.add_command(label="Exit", command=self.server_exit)
-
-        menu.add_cascade(label="File", menu=file)
-
-        edit = Menu(menu)
-        self.label.pack(fill=BOTH)
-        self.master.after(0, self.update, 0)
-
-        edit.add_command(label="New room", command=self.insert_room)
-        edit.add_command(label="Delete room", command=self.delete_room)
-
-        menu.add_cascade(label="Edit", menu=edit)
-        self.rooms.pack(fill=BOTH, expand=True)
-
-        self.rooms.bind('<<TreeviewSelect>>', self.insert_user)
-
-    def insert_room(self):
-        
-        window = Tk()
-        window.title("New Room")
-
-        w = 200
-        h = 30        
-        y = window.winfo_screenheight() / 2 - h / 2
-        x = window.winfo_screenwidth() / 2  - w / 2
-        
-        s = str(w) + "x" + str(h) + "+" + str(int(x)) + "+" + str(int(y))
-        window.geometry(s)
-        room_name = StringVar()
-        label_name = Label(window, text="Name").grid(row=0)
-        e = Entry(window)
-        e.grid(row=0, column=1)
-
-        window.bind("<Return>", lambda event: (self.rooms_dict.update({e.get() : self.rooms.insert("", END, text=e.get())}), window.destroy()))
-        window.mainloop()
-
-    def insert_user(self, event):
-
-        print(self.rooms.item(self.rooms.selection()[0])['text'])
-        
-    def delete_room(self):
-
-        window = Tk()
-        window.title("Delete Room")
-
-        w = 200
-        h = 30        
-        y = window.winfo_screenheight() / 2 - h / 2
-        x = window.winfo_screenwidth() / 2  - w / 2
-        
-        s = str(w) + "x" + str(h) + "+" + str(int(x)) + "+" + str(int(y))
-        window.geometry(s)
-
-        room_name = StringVar()
-        label_name = Label(window, text="Name").grid(row=0)
-        e = Entry(window)
-        e.grid(row=0, column=1)
-        window.bind("<Return>", lambda event: (self.rooms.delete(self.rooms_dict[e.get()]), window.destroy()))
-        window.mainloop()
-        
-    def update(self, x):
-
-        img = PhotoImage(file='rem.gif',format='gif -index ' + str(x))
-        dimg = img.subsample(2, 2)
-
-        x += 1
-        if x > 9: x = 0
-        self.master.tk.call('wm', 'iconphoto', self.master._w, dimg)
-
-
-
-        self.master.after(100, self.update, x)
-
-
-
-
-    def show_img(self):
-        load = Image.open("1.png")
-        render = ImageTk.PhotoImage(load)
-        
-        img = Label(self, image=render)
-        img.image = render
-        img.pack()
-#        img.place(x=0, y=0)
-
-
-    def server_exit(self, event=None):
-        self.master.destroy()
+class ServerGUI(wx.Frame):
     
+    def __init__(self, title):
+        
+        super(ServerGUI, self).__init__(None, title=title, size=(512, 512))
+        self.InitMenu()
+        self.InitRoomsview()
+        self.Centre()
+        self.Maximize()
     
 
-master = Tk()
-master.geometry("400x300")
+    def InitMenu(self):
+        
+        self.menu_bar = wx.MenuBar()
+        # File menu
+        self.file_menu = wx.Menu()
+        self.file_menu__close = self.file_menu.Append(wx.ID_EXIT, 'Close', 'Close server')
+        self.menu_bar.Append(self.file_menu, '&File')
+        # Rooms menu
+        self.rooms_menu = wx.Menu()
+        self.rooms_menu__create = self.rooms_menu.Append(wx.ID_ANY, '&Create room', 'Create a new room')
+        self.rooms_menu__delete = self.rooms_menu.Append(wx.ID_ANY, '&Delete room', 'Delete an existing room')
+        self.menu_bar.Append(self.rooms_menu, '&Rooms')
+        # Set current menu bar
+        self.SetMenuBar(self.menu_bar)
+        
+        # Events
+        self.Bind(wx.EVT_MENU, self.OnQuit, self.file_menu__close)
+        self.Bind(wx.EVT_MENU, self.OnCreateRoom, self.rooms_menu__create)
+        self.Bind(wx.EVT_MENU, self.OnDeleteRoom, self.rooms_menu__delete)
+    
+    
+    def InitRoomsview(self):
+        
+        # Tree
+        self.rooms_view = wx.TreeCtrl(self, wx.ID_ANY, (0,0))
+        self.root_node = self.rooms_view.AddRoot("List of rooms created")
+        self.room_nodes = []
+        self.room_names = []
+        self.rooms_view.ExpandAll()
+        # Popup menu
+        self.Bind(wx.EVT_TREE_ITEM_RIGHT_CLICK, self.OnRightClick)
+        self.rooms_view_menu = wx.Menu()
+        self.rooms_view_menu__add = self.rooms_view_menu.Append(wx.ID_ANY, 'Create', 'Create a room')
+        self.rooms_view_menu__delete = self.rooms_view_menu.Append(wx.ID_ANY, 'Delete', 'Delete this item')
+        self.Bind(wx.EVT_MENU, self.OnCreateRoom, self.rooms_view_menu__add)
+        self.Bind(wx.EVT_MENU, self.OnDeleteRoomPopup, self.rooms_view_menu__delete)
+    
+    
+    def AddRoom(self, room_name):
+        
+        if len(room_name) == 0 or room_name in self.room_names:
+            return False
+        else:
+            self.room_nodes.append(self.rooms_view.AppendItem(self.root_node, room_name))
+            self.rooms_view.ExpandAll()
+            self.room_names.append(room_name)
+            return True
+    
+    
+    def DeleteRoom(self, room_id):
+        
+        del self.room_names[room_id]
+        self.rooms_view.Delete(self.room_nodes[room_id])
+        self.room_nodes[room_id].Unset()
+        del self.room_nodes[room_id]
+        return True
+    
+    
+    def OnQuit(self, event):
+        
+        self.Close()
+    
 
-servidor = ServerGUI(master)
-#servidor.insertar_sala("Sala 1")
-#servidor.insertar_usuario("Sala 1", "Usuario 1")
+    def ShowError(self, message):
+        
+        wx.MessageDialog(self, message, style=wx.ICON_ERROR|wx.CENTRE).ShowModal()
+    
+    
+    def OnCreateRoom(self, event):
+        
+        answer_input = wx.TextEntryDialog(self, "Enter the room name:", "Room creation", '')
+        answer_input.Centre()
+        accept = answer_input.ShowModal()
+        if accept == wx.ID_OK:
+            room_name = answer_input.GetValue()
+            if not self.AddRoom(room_name):
+                self.ShowError("Error creating room")
+    
+    
+    def OnDeleteRoom(self, event):
+        
+        if len(self.room_names) == 0:
+            self.ShowError("There are not any room")
+        else:
+            answer_input = wx.SingleChoiceDialog(self, "Select room to be deleted:",
+                                                 "Room delete", self.room_names, wx.CENTRE)
+            accept = answer_input.ShowModal()
+            if accept == wx.ID_OK:
+                room_id = answer_input.GetSelection()
+                if not self.DeleteRoom(room_id):
+                    self.ShowError("Error deleting room '"+self.room_names[room_id]+"'")
+    
+    
+    def OnRightClick(self, event):
+        
+        self.selected_item = event.GetItem()
+        self.PopupMenu(self.rooms_view_menu, event.GetPoint())
+    
+    
+    def OnDeleteRoomPopup(self, event):
+        
+        try:
+            index = self.room_nodes.index(self.selected_item)
+            room_name = self.room_names[index]
+            if not self.DeleteRoom(index):
+                self.ShowError("Error deleting room '"+room_name+"'")
+        except:
+            pass
 
-#servidor.insertar_sala("Sala 2")
-#servidor.insertar_usuario("Sala 2", "Usuario 2")
-
-master.mainloop()
 
 
+
+def main():
+    
+    app = wx.App()
+    window = ServerGUI("Server")
+    window.Show(True)
+    app.MainLoop()
+
+
+
+if __name__ == "__main__":
+    
+    main()
