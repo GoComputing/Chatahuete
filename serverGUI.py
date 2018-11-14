@@ -39,6 +39,7 @@ class ServerGUI(wx.Frame):
         self.root_node = self.rooms_view.AddRoot("List of rooms created")
         self.room_nodes = []
         self.room_names = []
+        self.room_users = []
         self.rooms_view.ExpandAll()
         # Popup menu
         self.Bind(wx.EVT_TREE_ITEM_RIGHT_CLICK, self.OnRightClick)
@@ -57,16 +58,44 @@ class ServerGUI(wx.Frame):
             self.room_nodes.append(self.rooms_view.AppendItem(self.root_node, room_name))
             self.rooms_view.ExpandAll()
             self.room_names.append(room_name)
+            self.room_users.append([])
             return True
     
     
     def DeleteRoom(self, room_id):
         
+        for user in self.room_users[room_id]:
+            self.rooms_view.Delete(user[0])
+            user[0].Unset()
+        del self.room_users[room_id]
         del self.room_names[room_id]
         self.rooms_view.Delete(self.room_nodes[room_id])
         self.room_nodes[room_id].Unset()
         del self.room_nodes[room_id]
         return True
+    
+    
+    def AddUser(self, room_name, user_name):
+        
+        try:
+            room_index = self.room_names.index(room_name)
+            user_item = self.rooms_view.AppendItem(self.room_nodes[room_index], user_name)
+            self.room_users[room_index].append([user_item, user_name])
+        except Exception as e:
+            print(e)
+            raise
+    
+    
+    def DeleteUser(self, room_name, user_name):
+        
+        if room_name != None:
+            room_index = self.room_names.index(room_name)
+            for user_item in self.room_users[room_index]:
+                if user_item[1] == user_name:
+                    self.rooms_view.Delete(user_item[0])
+                    user_item[0].Unset()
+                    self.room_users[room_index].remove(user_item)
+                    break
     
     
     def OnQuit(self, event):
