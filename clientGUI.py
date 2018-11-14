@@ -1,13 +1,90 @@
 import wx
 import wx.lib.scrolledpanel as scrolled
 
-class ClientRoomSelector(wx.ScrolledWindow):
+
+class ClientRoom(wx.Panel):
+    
+    def __init__(self, parent, x_min, y_min, room_name):
+        
+        super(ClientRoom, self).__init__(parent)
+        self.background_colour = self.GetBackgroundColour()
+        self.parent = parent
+        self.x_padding = 50
+        self.SetMinSize((x_min, y_min))
+        self.text = wx.StaticText(self, wx.ID_ANY, room_name, pos=(self.x_padding, self.GetSize()[1]/1.8))
+        self.Bind(wx.EVT_LEFT_DOWN, self.OnSelected)
+        self.selected = True
+        self.Unselect()
+        self.room_name = room_name
+        self.select_callback = None
+    
+    
+    def Select(self):
+        
+        if not self.selected:
+            self.selected = True
+            colour = self.background_colour
+            new_colour = (colour[0]*0.9, colour[1]*0.9, colour[2]*0.9, colour[3])
+            self.SetBackgroundColour(new_colour)
+            self.Refresh()
+            self.parent.Refresh()
+    
+    
+    def Unselect(self):
+        
+        if self.selected:
+            self.selected = False
+            colour = self.background_colour
+            new_colour = (colour[0]*0.8, colour[1]*0.8, colour[2]*0.8, colour[3])
+            self.SetBackgroundColour(colour)
+            self.Refresh()
+    
+    
+    def SetSelectCallback(self, fnc):
+        
+        self.select_callback = fnc
+    
+    
+    def OnSelected(self, event):
+        
+        self.Select()
+        if self.select_callback != None:
+            self.select_callback(self.room_name)
+
+
+
+
+class ClientRoomSelector(scrolled.ScrolledPanel):
 
     def __init__(self, parent, x_min):
         
         super(ClientRoomSelector, self).__init__(parent, x_min)
-        self.SetMinSize((x_min, 1))
-        self.SetBackgroundColour((255, 255, 255))
+        self.x_min = x_min
+        self.y_min = 50
+        self.SetMinSize((self.x_min, 1))
+        self.sizer = wx.BoxSizer(wx.VERTICAL)
+        self.SetSizer(self.sizer)
+        self.rooms = []
+        
+        
+    def AddRoom(self, room_name):
+        
+        room = ClientRoom(self, self.x_min, self.y_min, room_name)
+        room.SetSelectCallback(self.OnSelectCallback)
+        self.rooms.append(room)
+        self.sizer.Add(room, 0, wx.EXPAND|wx.ALL)
+        self.sizer.AddSpacer(2)
+        self.Layout()
+        self.SetupScrolling()
+    
+    
+    def OnSelectCallback(self, room_name):
+        
+        for i,current_room in enumerate(self.rooms):
+            if current_room.room_name == room_name:
+                current_room.Select()
+            else:
+                current_room.Unselect()
 
 
 class ClientMessage(wx.Panel):
@@ -53,8 +130,8 @@ class ClientMessageList(scrolled.ScrolledPanel):
     def NewMessage(self, user, message):
         
         message = ClientMessage(self, user, message)
-        self.sizer.Add(message, 1)
-        self.sizer.AddSpacer(50)
+        self.sizer.Add(message, proportion)
+        self.sizer.AddSpacer(20)
         self.messages.append(message)
         self.Layout()
         self.SetupScrolling(scrollToTop=False)
@@ -126,6 +203,9 @@ class ClientGUI(wx.Frame):
         # Input setup
         self.input.SetFocus()
         self.Bind(wx.EVT_TEXT_ENTER, self.OnNewMessage, self.input)
+        
+        for i in range(0, 20):
+            self.OnNewRoom("Prueba"+str(i))
     
     
     def ChangeNick(self, new_nick):
@@ -148,6 +228,11 @@ class ClientGUI(wx.Frame):
             message = self.input.GetValue()
             self.input.SetValue('')
             self.message_list.NewMessage("Carlos", message)
+    
+    
+    def OnNewRoom(self, room_name):
+        
+        self.room_selector.AddRoom(room_name)
     
     
     def OnQuit(self, event):
