@@ -65,6 +65,7 @@ class ClientRoomSelector(scrolled.ScrolledPanel):
         self.sizer = wx.BoxSizer(wx.VERTICAL)
         self.SetSizer(self.sizer)
         self.rooms = []
+        self.change_room_callback = None
         
         
     def AddRoom(self, room_name):
@@ -78,11 +79,18 @@ class ClientRoomSelector(scrolled.ScrolledPanel):
         self.SetupScrolling()
     
     
+    def SetChangeRoomCallback(self, fnc):
+        
+        self.change_room_callback = fnc
+    
+    
     def OnSelectCallback(self, room_name):
         
         for i,current_room in enumerate(self.rooms):
             if current_room.room_name == room_name:
                 current_room.Select()
+                if self.change_room_callback != None:
+                    self.change_room_callback(i)
             else:
                 current_room.Unselect()
 
@@ -130,7 +138,7 @@ class ClientMessageList(scrolled.ScrolledPanel):
     def NewMessage(self, user, message):
         
         message = ClientMessage(self, user, message)
-        self.sizer.Add(message, proportion)
+        self.sizer.Add(message, proportion=0)
         self.sizer.AddSpacer(20)
         self.messages.append(message)
         self.Layout()
@@ -139,6 +147,21 @@ class ClientMessageList(scrolled.ScrolledPanel):
         self.parent.chat_sizer.Layout()
         self.parent.Fit()
 
+
+class ClientDefaultMessageList(wx.Panel):
+    
+    def __init__(self, parent):
+        
+        super(ClientDefaultMessageList, self).__init__(parent)
+        print(self.GetSize())
+        self.info = wx.StaticText(self, wx.ID_ANY, "Please, select any room to chat", style=wx.ALIGN_CENTRE_HORIZONTAL)
+        self.Bind(wx.EVT_SIZE, self.OnSizeChangeCallback)
+    
+    
+    def OnSizeChangeCallback(self, event):
+        
+        print(self.GetSize())
+        self.info.Centre()
 
 
 class ClientInput(wx.TextCtrl):
@@ -187,11 +210,12 @@ class ClientGUI(wx.Frame):
         self.main_sizer = wx.BoxSizer(wx.HORIZONTAL)
         # Basic elements
         self.room_selector = ClientRoomSelector(self, 300)
-        self.message_list = ClientMessageList(self)
+        self.message_lists = [[ClientDefaultMessageList(self), '<default>']]
+        self.current_message_list = 0
         #self.message_list = ClientMessage(self, "Carlos", "Carlos")
         self.input = ClientInput(self)
         # Chat sizer
-        self.chat_sizer.Add(self.message_list, 1, wx.EXPAND|wx.ALL)
+        self.chat_sizer.Add(self.message_lists[0][0], 1, wx.EXPAND|wx.ALL)
         self.chat_sizer.Add(self.input, 0, wx.EXPAND|wx.ALL)
         # Room selector sizer
         self.room_sizer = wx.BoxSizer(wx.VERTICAL)
@@ -203,9 +227,8 @@ class ClientGUI(wx.Frame):
         # Input setup
         self.input.SetFocus()
         self.Bind(wx.EVT_TEXT_ENTER, self.OnNewMessage, self.input)
-        
-        for i in range(0, 20):
-            self.OnNewRoom("Prueba"+str(i))
+        # Room selector setup
+        self.room_selector.SetChangeRoomCallback(self.OnChangeRoom)
     
     
     def ChangeNick(self, new_nick):
@@ -222,17 +245,31 @@ class ClientGUI(wx.Frame):
         wx.MessageDialog(self, message, style=wx.ICON_ERROR|wx.CENTRE).ShowModal()
     
     
-    def OnNewMessage(self, event):
-        
-        if len(self.input.GetValue()) > 0:
-            message = self.input.GetValue()
-            self.input.SetValue('')
-            self.message_list.NewMessage("Carlos", message)
-    
-    
     def OnNewRoom(self, room_name):
         
+        message_list = ClientMessageList(self)
+        message_list.Hide()
+        self.message_lists.append([message_list, room_name])
         self.room_selector.AddRoom(room_name)
+    
+    
+    def OnChangeRoom(self, room_index):
+        
+        self.chat_sizer.Detach(self.message_lists[self.current_message_list][0])
+        self.chat_sizer.Detach(self.input)
+        self.message_lists[self.current_message_list][0].Hide()
+        self.message_lists[room_index+1][0].Show(True)
+        self.current_message_list = room_index+1
+        self.chat_sizer.Add(self.message_lists[self.current_message_list][0], 1, wx.EXPAND|wx.ALL)
+        self.chat_sizer.Add(self.input, 0, wx.EXPAND|wx.ALL)
+    
+    
+    def OnNewMessage(self, event):
+        
+        if len(self.input.GetValue()) > 0 and self.current_message_list != 0:
+            message = self.input.GetValue()
+            self.input.SetValue('')
+            self.message_lists[self.current_message_list][0].NewMessage("Carlos", message)
     
     
     def OnQuit(self, event):
