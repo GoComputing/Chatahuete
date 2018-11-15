@@ -1,5 +1,6 @@
 import wx
 import wx.lib.scrolledpanel as scrolled
+import client
 
 
 class ClientRoom(wx.Panel):
@@ -77,6 +78,18 @@ class ClientRoomSelector(scrolled.ScrolledPanel):
         self.sizer.AddSpacer(2)
         self.Layout()
         self.SetupScrolling()
+    
+    
+    def DelRoom(self, room_name):
+        
+        for i,room in enumerate(self.rooms):
+            if room.room_name == room_name:
+                self.sizer.Detach(room)
+                self.Layout()
+                self.SetupScrolling()
+                self.rooms[i].Destroy()
+                del self.rooms[i]
+                break
     
     
     def SetChangeRoomCallback(self, fnc):
@@ -172,16 +185,86 @@ class ClientInput(wx.TextCtrl):
 
 
 
+#self.connected_to_room_callback = None
+#self.users_room_changed_callback = None
+
+#self.message_received_callback = None
+#self.new_message_callback = None
+
+
 
 class ClientGUI(wx.Frame):
     
     def __init__(self, title):
         
         super(ClientGUI, self).__init__(None, title=title, size=(1024, 1024))
+        # Connection
+        self.user = client.connect(None)
+        # GUI
         self.InitMenu()
         self.InitStructure()
         self.Centre()
         self.Maximize()
+        # Callbacks
+        self.user.set_nick_changed_callback(self.OnChangeNickCallback)
+        self.user.set_rooms_changed_callback(self.OnRoomsChangedCallback)
+        self.user.set_user_nick_changed_callback(self.OnUserNickChangedCallback)
+        self.user.set_deleted_room_callback(self.OnDeletedRoomCallback)
+        self.user.set_new_message_callback(self.OnNewMessageCallback)
+    
+    
+    def OnChangeNickCallback(self, changed, nick):
+        
+        try:
+            if not changed:
+                wx.CallAfter(self.ShowError, "Nick '"+nick+"'is not available")
+                if nick == None:
+                    wx.CallAfter(self.TryChangeNick)
+            else:
+                wx.CallAfter(self.ShowInfo, "Nick changed")
+        except Exception as e:
+            print(e)
+            raise
+    
+    
+    def OnRoomsChangedCallback(self, rooms):
+        
+        try:
+            for room in rooms:
+                if not self.RoomExists(room):
+                    wx.CallAfter(self.OnNewRoom, room)
+            for i,room in enumerate(self.message_lists):
+                if i != 0 and room[1] not in rooms:
+                    wx.CallAfter(self.OnDeleteRoom, room[1])
+        except Exception as e:
+            print(e)
+            raise
+    
+    
+    def OnUserNickChangedCallback(self, room_name, old_nick, new_nick):
+        
+        print("User connected to '"+room_name+"' changed his nick from '"+old_nick+"' to '"+new_nick+"'")
+    
+    
+    def OnDeletedRoomCallback(self):
+        
+        try:
+            wx.CallAfter(self.ShowError, "Your current room has ben deleted by server. Sorry")
+            wx.CallAfter(self.OnChangeRoom, -1)
+            wx.CallAfter(self.OnDeleteRoom, self.message_lists[self.current_message_list][1])
+        except Exception as e:
+            print(e)
+            raise
+    
+    
+    def OnNewMessageCallback(self, user, room, messages):
+        
+        for room_item in self.message_lists:
+            if room_item[1] == room:
+                print(user, ":", room, ":", messages)
+                for msg in messages:
+                    wx.CallAfter(room_item[0].NewMessage, user, msg)
+                break
     
     
     def InitMenu(self):
@@ -237,7 +320,16 @@ class ClientGUI(wx.Frame):
             return False
         else:
             print("Nick change request send")
+            self.user.try_change_nick(new_nick)
             return True
+    
+    
+    def RoomExists(self, room_name):
+        
+        for room in self.message_lists:
+            if room[1] == room_name:
+                return True
+        return False
     
     
     def ShowError(self, message):
@@ -245,12 +337,34 @@ class ClientGUI(wx.Frame):
         wx.MessageDialog(self, message, style=wx.ICON_ERROR|wx.CENTRE).ShowModal()
     
     
+    def ShowInfo(self, message):
+        
+        wx.MessageDialog(self, message, style=wx.OK|wx.CENTRE).ShowModal()
+    
+    
     def OnNewRoom(self, room_name):
         
-        message_list = ClientMessageList(self)
-        message_list.Hide()
-        self.message_lists.append([message_list, room_name])
-        self.room_selector.AddRoom(room_name)
+        try:
+            message_list = ClientMessageList(self)
+            message_list.Hide()
+            self.message_lists.append([message_list, room_name])
+            self.room_selector.AddRoom(room_name)
+        except Exception as e:
+            print(e)
+            raise
+    
+    
+    def OnDeleteRoom(self, room_name):
+        
+        try:
+            for i,room in enumerate(self.message_lists):
+                if room[1] == room_name:
+                    self.room_selector.DelRoom(room[1])
+                    del self.message_lists[i]
+                    break
+        except Exception as e:
+            print(e)
+            raise
     
     
     def OnChangeRoom(self, room_index):
@@ -262,14 +376,16 @@ class ClientGUI(wx.Frame):
         self.current_message_list = room_index+1
         self.chat_sizer.Add(self.message_lists[self.current_message_list][0], 1, wx.EXPAND|wx.ALL)
         self.chat_sizer.Add(self.input, 0, wx.EXPAND|wx.ALL)
+        self.user.connect_to_room(self.message_lists[self.current_message_list][1])
     
     
     def OnNewMessage(self, event):
         
-        if len(self.input.GetValue()) > 0 and self.current_message_list != 0:
+        if len(self.input.GetValue()) > 0 and self.current_message_list != 0 and self.user.nick != None:
             message = self.input.GetValue()
             self.input.SetValue('')
-            self.message_lists[self.current_message_list][0].NewMessage("Carlos", message)
+            self.message_lists[self.current_message_list][0].NewMessage(self.user.nick, message)
+            self.user.send_message(message)
     
     
     def OnQuit(self, event):
@@ -308,6 +424,7 @@ def main():
     client.Show(True)
     while not client.TryChangeNick():
         client.ShowError("You must type a nick")
+    client.user.request_rooms()
     app.MainLoop()
 
 

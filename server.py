@@ -187,7 +187,9 @@ class server:
         
         for u in self.clients:
             if user != u:
-                send_message(user.connection, CODE_SERVER__NEW_MESSAGE, user.nick+user.current_room_name+msg)
+                print("Send to", u.nick)
+                print(user.nick,user.current_room_name,msg)
+                send_message(u.connection, CODE_SERVER__NEW_MESSAGE, user.nick+'\n'+user.current_room_name+'\n'+msg)
     
     
     def _try_change_nick(self, user, new_nick):
@@ -200,8 +202,14 @@ class server:
             send_message(user.connection, CODE_SERVER__NICK_DENY, '')
         else:
             for u in self.clients:
-                if u.nick != user.nick:
-                    send_message(u.connection, CODE_SERVER__USER_NICK_CHANGED, user.current_room_name+"\n"+user.nick+"\n"+new_nick)
+                if u.nick != user.nick and user.nick != None:
+                    if user.current_room_name == None:
+                        room = ''
+                    else:
+                        room = user.current_room_name
+                    print("Algo x1", room, user.nick, new_nick)
+                    send_message(u.connection, CODE_SERVER__USER_NICK_CHANGED, room+"\n"+user.nick+"\n"+new_nick)
+                    print("Algo x2")
             if self.user_nick_changed_callback != None:
                 self.user_nick_changed_callback(user.current_room_name, user.nick, new_nick)
             user.nick = new_nick

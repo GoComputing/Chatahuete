@@ -1,6 +1,7 @@
 import wx
 import server
 from threading import Thread
+import traceback
 
 class ServerGUI(wx.Frame):
     
@@ -12,7 +13,7 @@ class ServerGUI(wx.Frame):
         self.Centre()
         self.Maximize()
         # Server initialization
-        self.server = server.server(3856, 1)
+        self.server = server.server(3856, 2)
         self.thread = Thread(target=self.ReceptorThread)
         self.thread.start()
         self.server.set_user_connected_to_room_callback(self.UserConnectedToRoomCallback)
@@ -116,6 +117,7 @@ class ServerGUI(wx.Frame):
                 user_item = self.rooms_view.AppendItem(self.room_nodes[room_index], user_name)
                 self.room_users[room_index].append([user_item, user_name])
             except Exception as e:
+                traceback.print_exc()
                 print(e)
                 raise
     
@@ -182,6 +184,7 @@ class ServerGUI(wx.Frame):
             if not self.DeleteRoom(index):
                 self.ShowError("Error deleting room '"+room_name+"'")
         except:
+            traceback.print_exc()
             pass
 
 
@@ -191,6 +194,7 @@ def main():
     
     app = wx.App()
     window = ServerGUI("Server")
+    window.AddRoom("SalaPrueba")
     window.Show(True)
     app.MainLoop()
     window.server.signal_close()

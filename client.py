@@ -1,9 +1,7 @@
-from tkinter import simpledialog
-from tkinter import messagebox
-from tkinter import Tk
 from threading import Thread
 import socket
 import time
+import wx
 
 from common import *
 
@@ -60,6 +58,7 @@ class client:
         while self.should_continue:
             try:
                 code, msg = read_message(self.connection)
+                print(str_code(code), code)
                 if code == CODE_COMMON__ERROR:
                     self.should_continue = False
                 elif code == CODE_SERVER__NICK_OK:
@@ -78,7 +77,7 @@ class client:
                         self.user_nick_changed_callback(room_name, old_name, new_name)
                 elif code == CODE_SERVER__ROOMS_MODIFIED:
                     rooms = msg.splitlines()
-                    if self.current_room_name not in rooms:
+                    if self.current_room_name != None and self.current_room_name not in rooms:
                         self.current_room_name = None
                         if self.deleted_room_callback != None:
                             self.deleted_room_callback()
@@ -102,12 +101,17 @@ class client:
                         self.message_received_callback(False)
                 elif code == CODE_SERVER__NEW_MESSAGE:
                     if self.new_message_callback != None:
-                        messages = msg.splitlines()
-                        user = messages[0]
-                        room = messages[1]
-                        del messages[0]
-                        del messages[1]
-                        self.new_message_callback(user, room, messages)
+                        try:
+                            messages = msg.splitlines()
+                            print(messages)
+                            user = messages[0]
+                            room = messages[1]
+                            del messages[0]
+                            del messages[0]
+                            self.new_message_callback(user, room, messages)
+                        except Exception as e:
+                            print(e)
+                            raise
                 else:
                     print(str_code(code), msg)
             except:
@@ -205,26 +209,24 @@ class client:
 
 def connect(ip):
     
-    root = Tk()
-    root.withdraw()
-    
     user = client(None)
     while user.connection == None:
         if ip == None:
-            ip = simpledialog.askstring("IP", "Enter server IP: ")
-            if ip == None:
+            answer_input = wx.TextEntryDialog(None, 'Enter server IP:', 'IP', '')
+            accept = answer_input.ShowModal()
+            print()
+            if accept != wx.ID_OK:
                 exit()
-        res = user.connect(ip)
+        res = user.connect(answer_input.GetValue())
         if res != CODE_SERVER__OK:
             if res == None:
                 msg = "Connection refused"
             else:
                 msg = "Error thrown by server: "+str_code(res)
-            messagebox.showerror("Error", msg)
+            wx.MessageDialog(None, msg, style=wx.ICON_ERROR|wx.CENTRE).ShowModal()
             user.connection = None
             ip = None
     
-    root.destroy()
     return user
 
 
