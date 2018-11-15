@@ -252,6 +252,8 @@ if __name__ == "__main__":
         print("Rooms changed/request:")
         for r in rooms:
             print("  ", r, sep='')
+        if len(rooms) > 0:
+            user.connect_to_room(rooms[0])
     
     def new_message_callback(user, room, msg):
         
@@ -263,13 +265,21 @@ if __name__ == "__main__":
             print("Server received message")
         else:
             print("Server deny last message")
+    
+    def nick_changed_callback(changed, new_nick):
+        
+        if changed:
+            print("Nick changed:", new_nick)
+        else:
+            print("Could not change nick. Old nick:", new_nick)
             
     user = connect(None)
     user.set_rooms_changed_callback(rooms_changed_callback)
     user.set_new_message_callback(new_message_callback)
     user.set_message_received_callback(message_received_callback)
+    user.set_nick_changed_callback(nick_changed_callback)
     user.try_change_nick("Carlos")
-    user.connect_to_room("room-prueba")
+    #user.connect_to_room("room-prueba")
     user.request_rooms()
     
     # TO-DO

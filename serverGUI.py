@@ -1,4 +1,6 @@
 import wx
+import server
+from threading import Thread
 
 class ServerGUI(wx.Frame):
     
@@ -9,6 +11,18 @@ class ServerGUI(wx.Frame):
         self.InitRoomsview()
         self.Centre()
         self.Maximize()
+        # Server initialization
+        self.server = server.server(3856, 1)
+        self.thread = Thread(target=self.ReceptorThread)
+        self.thread.start()
+        self.server.set_user_connected_to_room_callback(self.UserConnectedToRoomCallback)
+        self.server.set_user_disconnected_callback(self.UserDisconnectedCallback)
+        self.server.set_user_nick_changed_callback(self.UserNickChangedCallback)
+    
+    
+    def ReceptorThread(self):
+        
+        self.server.listen()
     
 
     def InitMenu(self):
@@ -59,11 +73,13 @@ class ServerGUI(wx.Frame):
             self.rooms_view.ExpandAll()
             self.room_names.append(room_name)
             self.room_users.append([])
+            self.server.add_room_name(room_name)
             return True
     
     
     def DeleteRoom(self, room_id):
         
+        self.server.del_room_name(self.room_names[room_id])
         for user in self.room_users[room_id]:
             self.rooms_view.Delete(user[0])
             user[0].Unset()
@@ -75,15 +91,33 @@ class ServerGUI(wx.Frame):
         return True
     
     
+    def UserNickChangedCallback(self, room_name, old_nick, new_nick):
+        
+        self.DeleteUser(room_name, old_nick)
+        self.AddUser(room_name, new_nick)
+    
+    
+    def UserConnectedToRoomCallback(self, old_room_name, new_room_name, nick):
+        
+        self.DeleteUser(old_room_name, nick)
+        self.AddUser(new_room_name, nick)
+    
+    
+    def UserDisconnectedCallback(self, nick, current_room_name):
+        
+        self.DeleteUser(current_room_name, nick)
+    
+    
     def AddUser(self, room_name, user_name):
         
-        try:
-            room_index = self.room_names.index(room_name)
-            user_item = self.rooms_view.AppendItem(self.room_nodes[room_index], user_name)
-            self.room_users[room_index].append([user_item, user_name])
-        except Exception as e:
-            print(e)
-            raise
+        if room_name != None:
+            try:
+                room_index = self.room_names.index(room_name)
+                user_item = self.rooms_view.AppendItem(self.room_nodes[room_index], user_name)
+                self.room_users[room_index].append([user_item, user_name])
+            except Exception as e:
+                print(e)
+                raise
     
     
     def DeleteUser(self, room_name, user_name):
@@ -100,6 +134,7 @@ class ServerGUI(wx.Frame):
     
     def OnQuit(self, event):
         
+        self.server.signal_close()
         self.Close()
     
 
@@ -158,6 +193,7 @@ def main():
     window = ServerGUI("Server")
     window.Show(True)
     app.MainLoop()
+    window.server.signal_close()
 
 
 
