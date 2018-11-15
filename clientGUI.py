@@ -36,7 +36,7 @@ class ClientGUI(Frame):
         self.frame = Frame(self.canvas, bg="#2b5279")
         self.canvas_frame = self.canvas.create_window(0, 0, window=self.frame, anchor=NW)
 
-        # Create window menu
+        # Create menu
         self.menu = Menu(self.master)
         self.master.config(menu=self.menu)
         file = Menu(self.master)
@@ -131,8 +131,7 @@ class ClientGUI(Frame):
         if s != "":
             l = Label(self.frame, text=self.username + ": " + s, bg="#2b5279", fg="white", font="Manjaro 12")
             l.pack(anchor=NW)
-
-        
+    
         
             
 
