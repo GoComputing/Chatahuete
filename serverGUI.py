@@ -2,8 +2,8 @@ from tkinter import *
 from tkinter import ttk
 from tkinter import messagebox
 from PIL import Image, ImageTk
-
-
+from server import server
+from threading import Thread
 
 
 class ServerGUI(Frame):
@@ -16,8 +16,50 @@ class ServerGUI(Frame):
         self.master.title("Servidor")
         self.master.geometry("{}x{}".format(self.master.winfo_screenwidth(), self.master.winfo_screenheight()))
 
+        # Server protocol object
+        self.server = server(3856, 2)
+
+        # Callbacks
+        self.server.set_user_connected_to_room_callback(self._user_connected_room)
+        self.server.set_user_disconnected_callback(self._user_disconnected)
+        self.server.set_user_nick_changed_callback(self._user_nick_changed)
+
+
+        self.init()              
         self.init_window()
 
+
+
+    def delete_user(self, room, nick):
+
+        for child in self.rooms.get_children():
+            if room == self.rooms.item(child)['text']:
+                for user in self.rooms.get_children(child):
+                    if nick == self.rooms.item(user)['text']:
+                        self.rooms.delete(user)
+
+    def add_user(self, room, nick):
+        for child in self.rooms.get_children():
+            print(child)
+            print(room)
+            if room == self.rooms.item(child)['text']:
+                self.rooms.insert(child, END, text=nick)
+
+
+    def _user_connected_room(self, old_room_name, new_room_name, nick):
+
+        self.add_user(new_room_name, nick)
+        self.delete_user(old_room_name, nick)
+        
+    def _user_disconnected(self, nick, current_room_name):
+        
+        self.delete_user(current_room_name, nick)
+
+    def _user_nick_changed(self, room_name, old_nick, new_nick):
+
+        self.add_user(room_name, new_nick)
+        self.delete_user(room_name, old_nick)    
+                        
     def init_window(self):
 
         
@@ -34,7 +76,7 @@ class ServerGUI(Frame):
         menu = Menu(self.master)
         self.master.config(menu=menu)
         file = Menu(menu)
-        file.add_command(label="Exit", command=self.server_exit)
+        file.add_command(label="Exit", command=self._server_exit)
         edit = Menu(menu)
         menu.add_cascade(label="File", menu=file)
         menu.add_cascade(label="Edit", menu=edit)
@@ -43,6 +85,7 @@ class ServerGUI(Frame):
 
         
         self.rooms.bind('<<TreeviewSelect>>', self.insert_user)
+        self.master.bind('<q>', self._server_exit)
         
         self.master.after(0, self.update, 0)
         
@@ -64,9 +107,16 @@ class ServerGUI(Frame):
         e.focus()
         e.grid(row=0, column=1)
 
-        window.bind("<Return>", lambda event: (self.rooms.insert("", END, text=e.get()), messagebox.showinfo("Information", e.get() + " has been created!", parent=window), window.destroy()))
+        window.bind("<Return>", lambda event: (self._add_room(e.get(), window)))
                     
         window.mainloop()
+
+    def _add_room(self, room_name, window):
+
+        self.rooms.insert("", END, text=room_name)
+        self.server.add_room_name(room_name)
+        messagebox.showinfo("Information", room_name + " has been create!", parent=window)
+        window.destroy()
 
     def insert_user(self, event):
 
@@ -81,8 +131,7 @@ class ServerGUI(Frame):
         for room in self.rooms.get_children():
             room_label = Label(window, text=self.rooms.item(room)['text'], bg="#2b5279", relief=SUNKEN, fg="white", font="Manjaro 12", )
             room_label.pack(fill=X, anchor=NW)
-            room_name = self.rooms.item(room)['text']
-            room_label.bind("<Button-1>", lambda event: (self.rooms.delete(room), messagebox.showinfo("Information", room_name  + " has been deleted :(", parent=window), window.destroy()))
+            room_label.bind("<Button-1>", lambda event: self._del_room(room_label, window))
             contador += 1
 
         w = 300
@@ -94,6 +143,20 @@ class ServerGUI(Frame):
         
 
         window.mainloop()
+
+    def _del_room(self, room, window):
+        
+        room_name = room.cget('text')
+        for child in self.rooms.get_children():
+            if self.rooms.item(child)['text'] == room_name:
+                r = child
+                
+        self.rooms.delete(r)
+        self.server.del_room_name(room_name)
+        room.destroy()
+        messagebox.showinfo("Information", room_name + " has been deleted :(", parent=window)
+        window.destroy()
+        
         
     def update(self, x):
 
@@ -114,8 +177,19 @@ class ServerGUI(Frame):
         img.image = render
         img.pack()
 
-    def server_exit(self, event=None):
+    def _server_exit(self, event=None):
         self.master.destroy()
+        self.server.signal_close()
+
+
+    def init(self):
+        
+        self.thread = Thread(target=self.ReceptorThread)
+        self.thread.start()
+
+    def ReceptorThread(self):
+        
+        self.server.listen()
     
     
 

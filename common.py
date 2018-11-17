@@ -52,9 +52,20 @@ def str_code(code):
         return "server->users_room_changed"
     elif code == CODE_CLIENT__REQUEST_ROOMS:
         return "client->request_rooms"
+    elif code == CODE_CLIENT__NEW_MESSAGE:
+        return "client->new_message"
+    elif code == CODE_SERVER__BAD_LAST_MESSAGE:
+        return "server->bad_last_message"
+    elif code == CODE_SERVER__MESSAGE_OK:
+        return "server->message_ok"
+    elif code == CODE_SERVER__NEW_MESSAGE:
+        return "server->new_message"
     return "<unkown>"
 
-
+CODE_CLIENT__NEW_MESSAGE        = 5000
+CODE_SERVER__BAD_LAST_MESSAGE   = 5001
+CODE_SERVER__MESSAGE_OK         = 5002
+CODE_SERVER__NEW_MESSAGE        = 5003
 def header(message_length, code):
     
     return format(message_length, '08d') + format(code, '08d')
