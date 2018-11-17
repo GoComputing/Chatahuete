@@ -57,7 +57,7 @@ class ClientGUI(Frame):
         self.master.config(menu=self.menu)
         file = Menu(self.master)
         file.add_command(label="Change username", command=self.set_username)
-        file.add_command(label="Exit", command=self.exit)
+        file.add_command(label="Exit", command=self.close)
         self.menu.add_cascade(label="User", menu=file)
 
 
@@ -83,8 +83,8 @@ class ClientGUI(Frame):
         self.canvas.config(yscrollcommand=self.scrollbar.set)
 
         # Bindings
+        self.master.bind("<Control-q>", self.close)
         self.master.bind("<Return>", self._get_text)
-        self.master.bind("q", self.exit)
         self.canvas.bind("<Configure>", self._frame_width)
         
 
@@ -96,9 +96,16 @@ class ClientGUI(Frame):
         
         new_room = Label(self.rooms_frame, text=room_name, font="Manjari 12", bg="#2b5279", fg="white", anchor=NW, relief=GROOVE)
         new_room.pack(fill='x')
-        new_room.bind("<Button-1>", lambda event: (self.canvas.itemconfigure(new_canvas_frame, state="normal"), self.set_current_room(room_name)))
+        new_room.bind("<Button-1>", lambda event: (self.select_room(room_name, new_canvas_frame)))
         new_frame.bind("<Configure>", self._scroll_chat)
         self.rooms_list[room_name] = [new_room, new_canvas_frame, new_frame]
+
+    def select_room(self, room_name, room_canvas):
+        self.set_current_room(room_name)
+        for room in self.rooms_list.values():
+            self.canvas.itemconfigure(room[1], state="hidden")
+        self.canvas.itemconfigure(room_canvas, state="normal")
+
 
     def delete_room(self, room_name):
         
@@ -107,6 +114,7 @@ class ClientGUI(Frame):
     def set_current_room(self, room_name):
         
         self.current_room = room_name
+        print(self.current_room)
         self.user.connect_to_room(self.current_room)
 
     def _deleted_room(self):
@@ -116,10 +124,11 @@ class ClientGUI(Frame):
 
     def _user_nick_changed(self, room_name, old_nick, new_nick):
         
-        print("The user " + old_nck + " connected to the room " + room_name + " has changed his nick to " + new_nick + ".") 
+        print("The user " + old_nick + " connected to the room " + room_name + " has changed his nick to " + new_nick + ".") 
         
     def _rooms_changed(self, rooms):
-        print("Updating rooms!")
+
+        
         for room in rooms:
             if room not in self.rooms_list.keys():
                 self.add_room(room)
@@ -137,10 +146,11 @@ class ClientGUI(Frame):
         
                 
     def _new_message(self, user, room, msg):
-        print("Mensaje recivido", msg)
-        
-        l = Label(self.rooms_list[room][2], text=user + ": " + msg[0], bg="#2b5279", fg="white", font="Manjari 12")
-        l.pack(anchor=NW)
+
+
+        if (room == self.current_room):
+            l = Label(self.rooms_list[room][2], text=user + ": " + msg[0], bg="#2b5279", fg="white", font="Manjari 12")
+            l.pack(anchor=NW)
 
         
     
@@ -211,17 +221,21 @@ class ClientGUI(Frame):
     def _get_text(self, event):
 
         """Get text from the Entry widget and create a new Label with this text."""
+        
         if self.current_room != None:
             s = self.chat_entry.get()
+
             self.chat_entry.delete(0, END)
             if s != "":
                 l = Label(self.rooms_list[self.current_room][2], text=self.username + ": " + s, bg="#2b5279", fg="white", font="Manjari 12")
+                
                 self.user.send_message(s)
                 l.pack(anchor=NW)
 
-    def exit(self):
-        self.user.close()
+    def close(self, event):
         self.master.destroy()
+        self.user.close()
+
         
             
 

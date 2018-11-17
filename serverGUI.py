@@ -84,7 +84,6 @@ class ServerGUI(Frame):
         edit.add_command(label="Delete room", command=self.delete_room)
 
         
-        self.rooms.bind('<<TreeviewSelect>>', self.insert_user)
         self.master.bind('<q>', self._server_exit)
         
         self.master.after(0, self.update, 0)
