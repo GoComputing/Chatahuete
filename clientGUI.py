@@ -1,6 +1,15 @@
-from tkinter import *
-from tkinter import ttk
-from tkinter import messagebox
+try:
+    from tkinter import *
+    from tkinter import ttk
+    from tkinter import messagebox
+except ImportError:
+    try:
+        from Tkinter import *
+        from tkinter import ttk
+        from tkinter import messagebox
+    except ImportError:
+        print("Requires Tkinter")
+    
 from mttkinter import mtTkinter
 from PIL import Image, ImageTk
 from client import client, connect
@@ -15,21 +24,18 @@ class ClientGUI(Frame):
         self.master.geometry("{}x{}".format(self.master.winfo_screenwidth(), self.master.winfo_screenheight()))
         self.user = connect("localhost")
 
-
-        self.canvas = None
         self.username = ""
         self.current_room = None
         
 
         # Callbacks
-        self.user.set_nick_changed_callback(self._change_nick) # Work
-        self.user.set_rooms_changed_callback(self._rooms_changed) # Work
-        self.user.set_user_nick_changed_callback(self._user_nick_changed) # Work
-        self.user.set_deleted_room_callback(self._deleted_room) # Test
-        self.user.set_new_message_callback(self._new_message) # Test
+        self.user.set_nick_changed_callback(self._change_nick) 
+        self.user.set_rooms_changed_callback(self._rooms_changed) 
+        self.user.set_user_nick_changed_callback(self._user_nick_changed)
+        self.user.set_deleted_room_callback(self._deleted_room) 
+        self.user.set_new_message_callback(self._new_message) 
         self.init_window()
         self.set_username()
-        print("Username {}".format(self.username))
        
         
     def init_window(self):
@@ -70,14 +76,6 @@ class ClientGUI(Frame):
         self.scrollbar.pack(side="right", fill="y")
         self.canvas.pack(side="right", fill=BOTH, expand=1)
       
-
-
-
-   
-#        img = ImageTk.PhotoImage(Image.open("1.png"))
-#        l = Label(self.frame, image=img)
-#        l.image = img
-#        l.pack()
 
         # Set scrollbar to canvas
         self.canvas.config(yscrollcommand=self.scrollbar.set)

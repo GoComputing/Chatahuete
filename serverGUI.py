@@ -1,6 +1,16 @@
-from tkinter import *
-from tkinter import ttk
-from tkinter import messagebox
+try:
+    from tkinter import *
+    from tkinter import ttk
+    from tkinter import messagebox
+except ImportError:
+    try:
+        from Tkinter import *
+        from Tkinter import ttk
+        from Tkinter import messagebox
+    except ImportError:
+        raise "Requires Tkinter"
+        
+    
 from PIL import Image, ImageTk
 from server import server
 from threading import Thread
@@ -112,29 +122,30 @@ class ServerGUI(Frame):
 
     def _add_room(self, room_name, window):
 
-        self.rooms.insert("", END, text=room_name)
+
         self.server.add_room_name(room_name)
+        self.rooms.insert("", END, text=room_name)
         messagebox.showinfo("Information", room_name + " has been create!", parent=window)
         window.destroy()
-
-    def insert_user(self, event):
-
-        print(self.rooms.item(self.rooms.selection()[0]))
         
     def delete_room(self):
 
         window = Tk()
         window.title("Delete Room")                
-        
-        contador = 0
+        rooms_label = []
+       
         for room in self.rooms.get_children():
-            room_label = Label(window, text=self.rooms.item(room)['text'], bg="#2b5279", relief=SUNKEN, fg="white", font="Manjaro 12", )
-            room_label.pack(fill=X, anchor=NW)
-            room_label.bind("<Button-1>", lambda event: self._del_room(room_label, window))
-            contador += 1
+            rooms_label.append(Label(window, text=self.rooms.item(room)['text'], bg="#2b5279", relief=SUNKEN, fg="white", font="Manjaro 12", ))
+       
+       
+        for room in rooms_label:
+            room.pack(fill=X, anchor=NW)
+            print(room)
+            room.bind("<Button-1>", lambda event, r=room: self._del_room(r, window))
+            
 
         w = 300
-        h = contador * room_label.winfo_reqheight()
+        h = len(self.rooms.get_children()) * rooms_label[0].winfo_reqheight()
         y = (window.winfo_screenheight() - h) / 2 
         x = (window.winfo_screenwidth() - w) / 2 
         s = str(w) + "x" + str(h) + "+" + str(int(x)) + "+" + str(int(y))
@@ -144,8 +155,9 @@ class ServerGUI(Frame):
         window.mainloop()
 
     def _del_room(self, room, window):
-        
+        print(room)
         room_name = room.cget('text')
+        print(room_name)
         for child in self.rooms.get_children():
             if self.rooms.item(child)['text'] == room_name:
                 r = child
